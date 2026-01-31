@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>KOCUROS</title>
+<style>
+:root{
+  --bg:#05070f;
+  --panel:rgba(20,25,40,.85);
+  --accent:#7c7cff;
+  --text:#e5e7eb;
+  --blur:blur(16px);
+  --win-bg: rgba(15, 20, 35, 0.9);
+  --taskbar-size: 64px;
+}
+
+*{box-sizing:border-box}
+body{
+    margin:0;height:100vh;
+    background:radial-gradient(circle at 30% 30%,#1b1f3a,#05070f);
+    background-size: cover;
+    background-position: center;
+    font-family: system-ui, sans-serif;
+    color:var(--text);overflow:hidden;
+}
+
+/* --- ANIMACJE --- */
+@keyframes windowOpen {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes windowClose {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.95); }
+}
+
+@keyframes windowMin {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to { opacity: 0; transform: scale(0.5) translateY(100px); }
+}
+
+.anim-close { animation: windowClose 0.2s forwards !important; pointer-events: none; }
+.anim-min { animation: windowMin 0.25s forwards !important; pointer-events: none; }
+
+/* --- STYLE MENU KONTEKSTOWEGO --- */
+#context-menu {
+    position: fixed;
+    background: var(--panel);
+    backdrop-filter: var(--blur);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 6px;
+    width: 200px;
+    z-index: 100000;
+    display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.context-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.context-item:hover {
+    background: var(--accent);
+    color: white;
+}
+.context-sep {
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+    margin: 4px 6px;
+}
+
+/* STYLIZOWANA LISTA ROZWIJANA */
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+    padding-right: 2.5rem !important;
+}
+
+select option {
+    background: #1b1f3a;
+    color: white;
+}
+
+/* --- STYLIZOWANE BUTTONY --- */
+button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.3s;
+    box-shadow: 0 4px 15px rgba(124, 124, 255, 0.3);
+}
+button:hover {
+    filter: brightness(1.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(124, 124, 255, 0.5);
+}
+button:active { transform: translateY(0); }
+
+/* --- NOWOCZESNY SLIDER --- */
+input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; }
+input[type=range]::-webkit-slider-thumb { 
+    -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; 
+    background: var(--accent); cursor: pointer; margin-top: -6px; 
+    box-shadow: 0 0 10px var(--accent);
+}
+
+/* BOOT, SETUP & LOGIN */
+#boot, #loginScreen, #setupScreen {position:fixed;inset:0;display:grid;place-items:center;z-index:1000;}
+#boot{background:black; font-family: monospace;}
+#loginScreen, #setupScreen {background:radial-gradient(#0b0f1a,#000);display:none;}
+.login-box{
+    background:var(--panel);backdrop-filter:var(--blur);padding:40px;
+    border-radius:24px;text-align:center;border: 1px solid rgba(255,255,255,0.1);
+    width: 350px;
+}
+.login-box input, .login-box select {
+    width:100%;padding:12px;margin-top:10px; border-radius:8px;
+    border:1px solid var(--accent); background: rgba(0,0,0,0.3); color: white;
+}
+
+/* DESKTOP & TASKBAR */
+#desktop{width:100%;height:100%;display:none; position: relative;}
+#desktop-icons {
+    position: absolute; inset: 20px;
+    display: flex; flex-direction: column; flex-wrap: wrap; gap: 15px;
+    align-content: flex-start;
+}
+#taskbar {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px); /* Przesunięty poza ekran */
+    opacity: 0;                                   /* Ukryty */
+    display: flex; 
+    gap: 12px;
+    padding: 0 20px;
+    background: var(--panel);
+    backdrop-filter: var(--blur);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    align-items: center;
+    z-index: 10000;
+    height: var(--taskbar-size);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); /* Płynna animacja */
+    pointer-events: none;                         /* Nieklikalny gdy ukryty */
+}
+
+/* Klasa, która "aktywuje" pasek */
+#taskbar.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+.task{
+    width: calc(var(--taskbar-size) * 0.7);
+    height: calc(var(--taskbar-size) * 0.7);
+    border-radius:12px;background:rgba(255,255,255,0.05);
+    display:grid;place-items:center;cursor:pointer;transition:.3s;
+    font-size: calc(var(--taskbar-size) * 0.35);
+    position: relative;
+}
+.task:hover{ background:var(--accent); transform: scale(1.1) translateY(-5px); }
+
+.task.active::after {
+    content: ''; position: absolute; bottom: 4px; width: 6px; height: 6px; 
+    background: var(--accent); border-radius: 50%;
+}
+
+#tray { margin-left: 15px; padding-left: 15px; border-left: 1px solid rgba(255,255,255,0.2); font-size: 13px; text-align:center; cursor: pointer;}
+
+/* WINDOW */
+.window{
+    position:absolute;top:10%;left:10%;width:650px;height:450px;
+    background:var(--win-bg);backdrop-filter:var(--blur);border-radius:16px;
+    box-shadow:0 25px 50px rgba(0,0,0,0.5);overflow:hidden;display:flex;
+    flex-direction:column; animation: windowOpen 0.4s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: transform 0.2s, opacity 0.2s, width 0.3s, height 0.3s;
+}
+.window.maximized {
+    top: 0 !important; left: 0 !important; width: 100vw !important; height: calc(100vh - 80px) !important;
+    border-radius: 0;
+}
+.window.minimized { display: none; }
+
+.titlebar{height:45px;display:flex;align-items:center;justify-content:space-between;padding:0 15px;background:rgba(0,0,0,0.2);cursor:move;user-select:none;}
+
+.controls { display: flex; gap: 8px; }
+.controls span {
+    width: 26px; height: 26px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.2s; font-family: monospace; font-size: 14px; font-weight: bold;
+    background: rgba(255,255,255,0.05);
+}
+.controls span:hover { background: rgba(255,255,255,0.15); }
+.red:hover { background: #ff5f56 !important; color: white; }
+.yellow:hover { background: #ffbd2e !important; color: black; }
+.green:hover { background: #27c93f !important; color: white; }
+
+.content{flex:1;overflow:auto;padding:15px;display:flex;flex-direction:column;}
+
+/* APPS SPECIFIC */
+.terminal { background: #000; color: #0f0; font-family: monospace; padding: 10px; border-radius: 8px; flex:1; display:flex; flex-direction:column;}
+.terminal input { background: transparent; border:none; color: #0f0; outline:none; width: 100%; font-family: monospace;}
+
+.calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; flex:1; }
+.calc-screen { 
+    background: rgba(0,0,0,0.3); padding: 20px; text-align: right; 
+    font-size: 24px; border-radius: 10px; margin-bottom: 15px; 
+}
+
+.niescut-layout { display: flex; gap: 10px; flex: 1; height: 70%; }
+.timeline { height: 80px; background: #111; margin-top: 10px; border-radius: 10px; display: flex; align-items: center; padding: 5px; gap: 5px; overflow-x: auto;}
+.clip { height: 60px; min-width: 100px; background: var(--accent); border-radius: 8px; display: grid; place-items: center; font-size: 12px;}
+
+/* Stylizacja ikon plików i folderów */
+.file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; }
+.file-icon-box { 
+    display: flex; flex-direction: column; align-items: center; 
+    padding: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s;
+    position: relative; width: 90px;
+}
+.file-icon-box:hover { background: rgba(255,255,255,0.1); }
+.file-icon-box span { font-size: 32px; }
+.file-icon-box label { font-size: 11px; margin-top: 5px; text-align: center; pointer-events: none; word-break: break-all; }
+
+/* Kalendarz Styl */
+.calendar-table { width: 100%; border-collapse: collapse; text-align: center; }
+.calendar-table th { padding: 5px; color: var(--accent); }
+.calendar-table td { padding: 8px; border-radius: 5px; cursor: default; }
+.calendar-table td.today { background: var(--accent); color: white; font-weight: bold; }
+
+/* Ustawienia Kategorie */
+.settings-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+.settings-nav span { cursor: pointer; opacity: 0.6; transition: 0.3s; padding: 5px 10px; }
+.settings-nav span.active { opacity: 1; border-bottom: 2px solid var(--accent); }
+.settings-page { display: none; flex-direction: column; gap: 15px; }
+.settings-page.active { display: flex; }
+
+/* MODAL / POPUP SYSTEM */
+.os-modal {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    background: var(--panel); backdrop-filter: var(--blur); padding: 30px;
+    border-radius: 20px; display: none; flex-direction: column; align-items: center; gap: 15px; z-index: 100000;
+    box-shadow: 0 0 100px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+    min-width: 300px; text-align: center;
+}
+.os-modal input {
+    width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--accent);
+    background: rgba(0,0,0,0.3); color: white; outline: none;
+}
+
+/* --- NOWE ANIMACJE STARTOWE --- */
+#splashScreen {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000; /* Powyżej wszystkiego */
+    display: none;
+}
+
+.logo-container {
+    font-size: 48px;
+    font-weight: 800;
+    letter-spacing: 10px;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent);
+    animation: logo-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes logo-glow {
+    from { opacity: 0.5; transform: scale(0.95); filter: blur(2px); }
+    to { opacity: 1; transform: scale(1.05); filter: blur(0px); }
+}
+
+.loader-bar {
+    width: 200px;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    margin-top: 30px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loader-progress {
+    position: absolute;
+    height: 100%;
+    width: 50%;
+    background: var(--accent);
+    border-radius: 10px;
+    animation: loading-move 1.5s infinite ease-in-out;
+}
+
+@keyframes loading-move {
+    from { left: -50%; }
+    to { left: 100%; }
+}
+
+#splash-status {
+    margin-top: 15px;
+    font-size: 12px;
+    opacity: 0.5;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+</style>
+</head>
+<body>
+
+<div id="boot">Booting KOCUROS…</div>
+<div id="splashScreen">
+    <div class="logo-container">KOCUROS</div>
+    <div class="loader-bar"><div class="loader-progress"></div></div>
+    <div id="splash-status">Inicjalizacja jądra...</div>
+</div>
+<div id="context-menu"></div>
+
+<div id="os-modal" class="os-modal">
+    <div id="modal-text" style="font-size: 18px;"></div>
+    <div id="modal-input-container"></div>
+    <div id="modal-buttons" style="display:flex; gap:10px;"></div>
+</div>
+
+<div id="setupScreen">
+    <div class="login-box">
+        <div id="setup-step-1">
+            <h1>Select Language</h1>
+            <select id="setupLang">
+                <option value="pl">Polski</option>
+                <option value="en" selected>English</option>
+            </select>
+            <br><br>
+            <button onclick="nextSetupStep()">Next</button>
+        </div>
+
+        <div id="setup-step-2" style="display:none">
+            <h1 id="txt-setup-title">Konfiguracja</h1>
+            <input id="setupUser" placeholder="Użytkownik">
+            <input id="setupPass" type="password" placeholder="Hasło">
+            <br><br>
+            <button onclick="finishSetup()" id="btn-install">Zainstaluj System</button>
+        </div>
+    </div>
+</div>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>KOCUROS</h1>
+    <h3 id="loginWelcome">Witaj</h3>
+    <input id="usernameInput" type="password" placeholder="Hasło">
+    <br><br>
+    <button onclick="doLogin()">Zaloguj</button>
+  </div>
+</div>
+
+<div id="desktop">
+  <div id="desktop-icons"></div>
+  <div id="taskbar">
+    <div class="task" id="task-Terminal" onclick="handleTaskClick('Terminal', openTerminal)" title="Terminal">🖥</div>
+    <div class="task" id="task-Pliki" onclick="handleTaskClick('Pliki', openFiles)" title="Pliki">📁</div>
+    <div class="task" id="task-Paint" onclick="handleTaskClick('Paint', openPaint)" title="Paint">🎨</div>
+    <div class="task" id="task-Notatnik" onclick="handleTaskClick('Notatnik', () => openNotes())" title="Notatnik">📝</div>
+    <div class="task" id="task-Kalkulator" onclick="handleTaskClick('Kalkulator', openCalc)" title="Kalkulator">🔢</div>
+    <div class="task" id="task-Niescut" onclick="handleTaskClick('Niescut', openNiescut)" title="Niescut">🎬</div>
+    <div class="task" id="task-Ustawienia" onclick="handleTaskClick('Ustawienia', openSettings)" title="Ustawienia">⚙️</div>
+    <div class="task" id="logoutBtn" title="Wyloguj">🚪</div>
+    
+    <div id="tray" onclick="openCalendar()">
+      <div id="tray-time" style="font-weight:bold">00:00</div>
+      <div id="tray-date" style="font-size: 10px; opacity:0.7">01.01.2024</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* --- JĘZYKI --- */
+const langLib = {
+    pl: {
+        welcome: "Witaj", setup: "Konfiguracja", install: "Instaluj", installing: "Instalowanie...",
+        username: "Nazwa użytkownika", password: "Hasło", login: "Zaloguj",
+        settings: "Ustawienia", system: "System", appearance: "Wygląd", profile: "Profil",
+        langName: "Język", accent: "Kolor akcentu", wallpaper: "Tapeta (URL)",
+        opacity: "Przezroczystość", reset: "Resetuj system", version: "Wersja 26.1 Alpha 4",
+        newFile: "Nowy plik tekstowy", newFolder: "Nowy folder", delete: "Usuń",
+        rename: "Zmień nazwę", save: "Zapisz", calendar: "Kalendarz",
+        errPass: "Błędne hasło!", confirmReset: "Czy na pewno zresetować?",
+        empty: "Folder jest pusty", terminal: "Terminal", files: "Pliki", refresh: "Odśwież",
+        taskSize: "Wielkość paska", info: "Informacje"
+    },
+    en: {
+        welcome: "Welcome", setup: "Setup", install: "Install", installing: "Installing...",
+        username: "Username", password: "Password", login: "Login",
+        settings: "Settings", system: "System", appearance: "Appearance", profile: "Profile",
+        langName: "Language", accent: "Accent Color", wallpaper: "Wallpaper (URL)",
+        opacity: "Opacity", reset: "Factory Reset", version: "Version 26.1 Alpha 4",
+        newFile: "New Text File", newFolder: "New Folder", delete: "Delete",
+        rename: "Rename", save: "Save", calendar: "Calendar",
+        errPass: "Incorrect password!", confirmReset: "Are you sure you want to reset?",
+        empty: "Folder is empty", terminal: "Terminal", files: "Files", refresh: "Refresh",
+        taskSize: "Taskbar size", info: "Info"
+    }
+};
+
+let currentLang = localStorage.kocuros_lang || 'pl';
+const t = (key) => langLib[currentLang][key] || key;
+
+/* --- CORE & FILE SYSTEM --- */
+const boot=document.getElementById("boot"),
+      loginScreen=document.getElementById("loginScreen"),
+      setupScreen=document.getElementById("setupScreen"),
+      desktop=document.getElementById("desktop"),
+      ctxMenu=document.getElementById("context-menu"),
+      modal = document.getElementById("os-modal");
+
+function showModal(text, type = "confirm", callback = null) {
+    const textEl = document.getElementById("modal-text");
+    const inputCont = document.getElementById("modal-input-container");
+    const btnCont = document.getElementById("modal-buttons");
+    
+    textEl.innerText = text;
+    inputCont.innerHTML = "";
+    btnCont.innerHTML = "";
+    modal.style.display = "flex";
+
+    if(type === "prompt") {
+        const input = document.createElement("input");
+        input.id = "modal-field";
+        inputCont.appendChild(input);
+        input.focus();
+    }
+
+    const okBtn = document.createElement("button");
+    okBtn.innerText = "OK";
+    okBtn.onclick = () => {
+        modal.style.display = "none";
+        if(callback) {
+            const val = document.getElementById("modal-field")?.value;
+            callback(type === "prompt" ? val : true);
+        }
+    };
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.innerText = "Anuluj";
+    cancelBtn.style.background = "#444";
+    cancelBtn.onclick = () => {
+        modal.style.display = "none";
+        if(callback && type !== "alert") callback(false);
+    };
+
+    btnCont.appendChild(okBtn);
+    if(type !== "alert") btnCont.appendChild(cancelBtn);
+}
+
+function getFileSystem() {
+    if(!localStorage.kocuros_files) {
+        localStorage.kocuros_files = JSON.stringify([
+            {name: "witaj.txt", content: "Witaj w Twoim nowym systemie KOCUROS!", type: "file", parent: "root"},
+            {name: "Moje Dokumenty", type: "folder", parent: "root"}
+        ]);
+    }
+    return JSON.parse(localStorage.kocuros_files);
+}
+
+function saveFileSystem(files) {
+    localStorage.kocuros_files = JSON.stringify(files);
+    renderDesktopIcons();
+}
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById("tray-time").textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    document.getElementById("tray-date").textContent = now.toLocaleDateString();
+}
+setInterval(updateClock, 1000);
+
+// Boot sequence
+setTimeout(() => {
+    boot.remove();
+    if(!localStorage.kocuros_setup_done) {
+        setupScreen.style.display = "grid";
+    } else if(!localStorage.kocuros_user) {
+        loginScreen.style.display="grid";
+        document.getElementById("loginWelcome").innerText = t('welcome') + ", " + (localStorage.kocuros_username || "User");
+    } else {
+        startOS();
+    }
+}, 1500);
+
+/* --- NOWA LOGIKA SETUPU --- */
+function nextSetupStep() {
+    // Ustawienie wybranego języka
+    currentLang = document.getElementById("setupLang").value;
+    localStorage.kocuros_lang = currentLang;
+
+    // Tłumaczenie UI drugiego kroku "w locie"
+    document.getElementById("txt-setup-title").innerText = t('setup');
+    document.getElementById("setupUser").placeholder = t('username');
+    document.getElementById("setupPass").placeholder = t('password');
+    document.getElementById("btn-install").innerText = t('install');
+
+    // Przełączanie widoków
+    document.getElementById("setup-step-1").style.display = "none";
+    document.getElementById("setup-step-2").style.display = "flex";
+    document.getElementById("setup-step-2").style.flexDirection = "column";
+}
+
+function finishSetup() {
+    const user = document.getElementById("setupUser").value.trim();
+    const pass = document.getElementById("setupPass").value.trim();
+    
+    if(!user || !pass) {
+        showModal(currentLang === 'pl' ? "Wypełnij wszystkie pola!" : "Please fill all fields!", "alert");
+        return;
+    }
+    
+    localStorage.kocuros_username = user;
+    localStorage.kocuros_password = pass; // Zapisujemy wymagane hasło
+    localStorage.kocuros_setup_done = "true";
+    location.reload();
+}
+
+function doLogin() {
+    const inputPass = document.getElementById("usernameInput").value;
+    const savedPass = localStorage.kocuros_password; // hasło ustawione podczas setupu
+
+    if (inputPass === savedPass) {
+        localStorage.kocuros_user = localStorage.kocuros_username;
+        startOS();
+    } else {
+        showModal(t('errPass'), "alert");
+        document.getElementById("usernameInput").value = ""; // czyścimy pole po błędzie
+    }
+}
+
+function startOS() {
+    if(loginScreen) loginScreen.remove();
+    if(setupScreen) setupScreen.remove();
+    desktop.style.display = "block";
+    
+    // Aktywacja paska z lekkim opóźnieniem dla lepszego efektu
+    setTimeout(() => {
+        document.getElementById("taskbar").classList.add("visible");
+    }, 4500);
+    
+    applyStoredSettings();
+    updateClock();
+    renderDesktopIcons();
+}
+
+// Rozbudowana sekwencja startowa
+const splash = document.getElementById("splashScreen");
+const splashStatus = document.getElementById("splash-status");
+
+setTimeout(() => {
+    // 1. Ukryj czarny ekran bootowania i pokaż Splash Screen
+    boot.style.display = "none";
+    splash.style.display = "flex";
+
+    // 2. Symulacja ładowania modułów (opcjonalne, dla klimatu)
+    const statuses = ["Wczytywanie sterowników...", "Montowanie systemu plików...", "Uruchamianie GUI...", "KOCUROS jest gotowy"];
+    statuses.forEach((msg, i) => {
+        setTimeout(() => {
+            splashStatus.innerText = msg;
+        }, i * 1000); // Zmiana napisu co sekundę
+    });
+
+    // 3. Po 4 sekundach (4000ms) przejdź do Logowania/Setupu
+    setTimeout(() => {
+        splash.style.animation = "windowClose 0.5s forwards"; // Używamy Twojej animacji wyjścia
+        
+        setTimeout(() => {
+            splash.remove();
+            if(!localStorage.kocuros_setup_done) {
+                setupScreen.style.display = "grid";
+            } else if(!localStorage.kocuros_user) {
+                loginScreen.style.display="grid";
+                document.getElementById("loginWelcome").innerText = t('welcome') + ", " + (localStorage.kocuros_username || "User");
+            } else {
+                startOS();
+            }
+        }, 500);
+    }, 4000);
+
+}, 1500); // Czas trwania pierwszego czarnego ekranu "Booting..."
+
+/* --- PULPIT & IKONY --- */
+function renderDesktopIcons() {
+    const container = document.getElementById("desktop-icons");
+    container.innerHTML = "";
+    const files = getFileSystem();
+    files.filter(f => f.parent === "root").forEach((f, idx) => {
+        const icon = document.createElement("div");
+        icon.className = "file-icon-box";
+        icon.innerHTML = `<span>${f.type === 'folder' ? '📁' : '📄'}</span><label>${f.name}</label>`;
+        icon.onclick = () => {
+            if(f.type === 'folder') openFiles(f.name);
+            else {
+                const globalIdx = files.indexOf(f);
+                openNotes(globalIdx);
+            }
+        };
+        icon.oncontextmenu = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showFileContext(e, files.indexOf(f));
+        };
+        container.appendChild(icon);
+    });
+}
+
+function showFileContext(e, index) {
+    const { clientX: x, clientY: y } = e;
+    ctxMenu.style.display = "block";
+    ctxMenu.style.left = x + "px";
+    ctxMenu.style.top = y + "px";
+    ctxMenu.innerHTML = `
+        <div class="context-item" onclick="deleteFile(${index})"><span>🗑</span> ${t('delete')}</div>
+    `;
+}
+
+/* --- SYSTEM MENU KONTEKSTOWEGO --- */
+window.oncontextmenu = (e) => {
+    if(e.target.closest('.file-icon-box')) return;
+    e.preventDefault();
+    const { clientX: x, clientY: y } = e;
+    ctxMenu.style.display = "block";
+    ctxMenu.style.left = x + "px";
+    ctxMenu.style.top = y + "px";
+
+    const clickedWindow = e.target.closest('.window');
+    if (clickedWindow) {
+        const title = clickedWindow.id.replace('win-', '');
+        ctxMenu.innerHTML = `
+            <div class="context-item" onclick="maximizeWin('${title}')"><span>▢</span> Powiększ</div>
+            <div class="context-item" onclick="closeWin('${title}')" style="color:#ff5f56"><span>✕</span> Zamknij</div>
+        `;
+    } else {
+        ctxMenu.innerHTML = `
+            <div class="context-item" onclick="openTerminal()"><span>🖥</span> ${t('terminal')}</div>
+            <div class="context-item" onclick="openFiles()"><span>📁</span> ${t('files')}</div>
+            <div class="context-sep"></div>
+            <div class="context-item" onclick="createNew('file')"><span>📄</span> ${t('newFile')}</div>
+            <div class="context-item" onclick="createNew('folder')"><span>📁</span> ${t('newFolder')}</div>
+            <div class="context-sep"></div>
+            <div class="context-item" onclick="location.reload()"><span>🔄</span> ${t('refresh')}</div>
+        `;
+    }
+};
+window.onclick = () => { ctxMenu.style.display = "none"; };
+
+function createNew(type) {
+    showModal("Podaj nazwę:", "prompt", (name) => {
+        if(!name) return;
+        const files = getFileSystem();
+        files.push({
+            name: name + (type === 'file' && !name.includes('.') ? '.txt' : ''),
+            type: type,
+            content: "",
+            parent: "root"
+        });
+        saveFileSystem(files);
+    });
+}
+
+function deleteFile(index) {
+    showModal(t('confirmReset'), "confirm", (yes) => {
+        if(yes) {
+            const files = getFileSystem();
+            files.splice(index, 1);
+            saveFileSystem(files);
+        }
+    });
+}
+
+/* --- WINDOW SYSTEM --- */
+let zIndex = 100;
+let openWindows = {}; 
+
+function createWindow(title, html, wWidth="650px", wHeight="450px") {
+    if(openWindows[title]) {
+        const existing = openWindows[title];
+        existing.classList.remove("minimized", "anim-min");
+        existing.style.display = "flex";
+        existing.style.zIndex = ++zIndex;
+        return;
+    }
+    const w = document.createElement("div");
+    w.className = "window";
+    w.id = "win-" + title;
+    w.style.zIndex = ++zIndex;
+    w.style.width = wWidth;
+    w.style.height = wHeight;
+    w.innerHTML = `
+        <div class="titlebar">
+            <div class="controls">
+                <span class="red" onclick="closeWin('${title}')">✕</span>
+                <span class="yellow" onclick="minimizeWin('${title}')">─</span>
+                <span class="green" onclick="maximizeWin('${title}')">▢</span>
+            </div>
+            <strong style="font-size:14px; opacity:0.8">${title}</strong>
+            <div style="width:40px"></div>
+        </div>
+        <div class="content">${html}</div>`;
+    document.body.appendChild(w);
+    dragWindow(w);
+    openWindows[title] = w;
+    document.getElementById("task-" + title.split(' ')[0])?.classList.add("active");
+    w.style.background = `rgba(15, 20, 35, ${(localStorage.kocuros_windowOpacity || 90)/100})`;
+}
+
+function closeWin(title) {
+    const win = openWindows[title];
+    if(!win) return;
+    win.classList.add("anim-close");
+    setTimeout(() => {
+        win.remove();
+        delete openWindows[title];
+        document.getElementById("task-" + title.split(' ')[0])?.classList.remove("active");
+    }, 200);
+}
+
+function minimizeWin(title) {
+    const win = openWindows[title];
+    if(!win) return;
+    win.classList.add("anim-min");
+    setTimeout(() => { win.classList.add("minimized"); }, 250);
+}
+
+function maximizeWin(title) { if(openWindows[title]) openWindows[title].classList.toggle("maximized"); }
+
+function handleTaskClick(titleShort, openFunc) {
+    let fullTitle = Object.keys(openWindows).find(k => k.startsWith(titleShort));
+    if(fullTitle) {
+        let w = openWindows[fullTitle];
+        if(w.classList.contains("minimized")) {
+            w.classList.remove("minimized", "anim-min");
+            w.style.display = "flex";
+            w.style.zIndex = ++zIndex;
+        } else { minimizeWin(fullTitle); }
+    } else { openFunc(); }
+}
+
+function dragWindow(w) {
+    const bar = w.querySelector(".titlebar");
+    let x, y;
+    bar.onmousedown = e => {
+        if(w.classList.contains("maximized")) return;
+        w.style.zIndex = ++zIndex;
+        x = e.clientX; y = e.clientY;
+        document.onmousemove = ev => {
+            w.style.left = (w.offsetLeft + ev.clientX - x) + "px";
+            w.style.top = (w.offsetTop + ev.clientY - y) + "px";
+            x = ev.clientX; y = ev.clientY;
+        }
+        document.onmouseup = () => document.onmousemove = null;
+    }
+}
+
+/* --- APPS --- */
+
+function openFiles(folderName = "Root") {
+    const refreshFiles = () => {
+        const files = getFileSystem();
+        let html = `<div class="file-grid">`;
+        const filtered = files.filter(f => f.parent === (folderName === "Root" ? "root" : folderName));
+        if(filtered.length === 0) html += `<p style="opacity:0.5">${t('empty')}</p>`;
+        filtered.forEach((f) => {
+            const idx = files.indexOf(f);
+            html += `
+                <div class="file-icon-box" onclick="${f.type === 'folder' ? `openFiles('${f.name}')` : `openNotes(${idx})`}">
+                    <span>${f.type === 'folder' ? '📁' : '📄'}</span>
+                    <label>${f.name}</label>
+                </div>`;
+        });
+        html += `</div>`;
+        const win = openWindows["Pliki"];
+        if(win) win.querySelector(".content").innerHTML = html;
+        return html;
+    };
+    createWindow("Pliki", refreshFiles(), "500px", "400px");
+}
+
+function openNotes(index = -1) {
+    const files = getFileSystem();
+    
+    if(index === -1) {
+        index = parseInt(localStorage.kocuros_last_note_idx);
+        if(isNaN(index) || !files[index]) {
+            index = files.findIndex(f => f.name === "notatki.txt");
+            if(index === -1) index = 0;
+        }
+    }
+
+    localStorage.kocuros_last_note_idx = index;
+    const file = files[index];
+    const winTitle = "Notatnik";
+
+    const noteHtml = `
+        <div style="margin-bottom:8px; display:flex; gap:8px; align-items:center;">
+            <button onclick="openNoteList()" style="padding:4px 10px; font-size:12px;">☰ Lista</button>
+            <small>Plik: <b>${file.name}</b></small>
+        </div>
+        <textarea id="n-area-${index}" style="width:100%; flex:1; background:rgba(0,0,0,0.1); color:inherit; border:1px solid rgba(255,255,255,0.1); border-radius:8px; outline:none; resize:none; font-family:inherit; font-size:16px; padding:10px;">${file.content}</textarea>
+    `;
+
+    createWindow(winTitle, noteHtml, "400px", "500px");
+    openWindows[winTitle].querySelector(".content").innerHTML = noteHtml;
+
+    const area = document.getElementById(`n-area-${index}`);
+    if(area) {
+        area.oninput = e => {
+            const currentFiles = getFileSystem();
+            currentFiles[index].content = e.target.value;
+            saveFileSystem(currentFiles);
+        };
+    }
+
+    window.openNoteList = () => {
+        let listHtml = `<h3>Wybierz notatkę:</h3><div class="file-grid">`;
+        files.forEach((f, i) => {
+            listHtml += `
+                <div class="file-icon-box" onclick="openNotes(${i})">
+                    <span>📄</span>
+                    <label>${f.name}</label>
+                </div>`;
+        });
+        listHtml += `</div>`;
+        openWindows[winTitle].querySelector(".content").innerHTML = listHtml;
+    };
+}
+
+function openTerminal() {
+    createWindow("Terminal", `
+        <div class="terminal">
+            <div>KOCUROS Kernel v3.1.0-stable</div>
+            <div id="t-out"></div>
+            <div style="display:flex">> <input id="t-in" autofocus></div>
+        </div>
+    `);
+    const input = document.getElementById("t-in");
+    if(input) {
+        input.onkeydown = e => {
+            if(e.key === "Enter") {
+                const out = document.getElementById("t-out"), cmd = input.value.toLowerCase();
+                out.innerHTML += `<div>> ${cmd}</div>`;
+                if(cmd === "ls") {
+                    const files = getFileSystem();
+                    out.innerHTML += `<div>${files.map(f => f.name).join("  ")}</div>`;
+                }
+                else if(cmd === "help") out.innerHTML += "<div>Dostępne: ls, help, clear, date</div>";
+                else if(cmd === "clear") out.innerHTML = "";
+                else if(cmd === "date") out.innerHTML += `<div>${new Date()}</div>`;
+                input.value = "";
+            }
+        }
+    }
+}
+
+function openCalendar() {
+    const now = new Date();
+    const month = now.toLocaleString(currentLang, { month: 'long' });
+    const year = now.getFullYear();
+    
+    let calHtml = `<h3 style="text-align:center">${month} ${year}</h3><table class="calendar-table"><tr>`;
+    const days = currentLang === 'pl' ? ['Pn','Wt','Śr','Cz','Pt','So','Nd'] : ['Mo','Tu','We','Th','Fr','Sa','Su'];
+    days.forEach(d => calHtml += `<th>${d}</th>`);
+    calHtml += `</tr><tr>`;
+    
+    let firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+    if(firstDay === 0) firstDay = 7;
+    for(let i=1; i < firstDay; i++) calHtml += `<td></td>`;
+    
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    for(let d=1; d<=daysInMonth; d++) {
+        const isToday = d === now.getDate() ? 'class="today"' : '';
+        calHtml += `<td ${isToday}>${d}</td>`;
+        if((d + firstDay - 1) % 7 === 0) calHtml += `</tr><tr>`;
+    }
+    calHtml += `</tr></table>`;
+    
+    createWindow(t('calendar'), calHtml, "300px", "350px");
+}
+
+function openPaint() {
+    createWindow("Paint", `<canvas id="p-can" width="600" height="320" style="background:white; border-radius:10px; cursor:crosshair"></canvas>
+        <div style="margin-top:10px; display:flex; gap:10px;"><button onclick="ctxClear()">Wyczyść</button><input type="color" id="p-col" value="#7c7cff"></div>`);
+    const can = document.getElementById("p-can");
+    if(can) {
+        const ctx = can.getContext("2d");
+        let draw = false;
+        can.onmousedown = () => draw = true; can.onmouseup = () => draw = false;
+        can.onmousemove = e => { if(!draw) return; ctx.fillStyle = document.getElementById("p-col").value; ctx.beginPath(); ctx.arc(e.offsetX, e.offsetY, 4, 0, Math.PI*2); ctx.fill(); }
+        window.ctxClear = () => ctx.clearRect(0,0,can.width,can.height);
+    }
+}
+
+function openCalc() {
+    createWindow("Kalkulator", `<div class="calc-screen" id="c-res">0</div><div class="calc-grid">
+        <button onclick="cAdd('7')">7</button><button onclick="cAdd('8')">8</button><button onclick="cAdd('9')">9</button><button style="background:#f39c12" onclick="cAdd('/')">/</button>
+        <button onclick="cAdd('4')">4</button><button onclick="cAdd('5')">5</button><button onclick="cAdd('6')">6</button><button style="background:#f39c12" onclick="cAdd('*')">*</button>
+        <button onclick="cAdd('1')">1</button><button onclick="cAdd('2')">2</button><button onclick="cAdd('3')">3</button><button style="background:#f39c12" onclick="cAdd('-')">-</button>
+        <button onclick="cAdd('0')">0</button><button onclick="cClr()">C</button><button onclick="cEval()">=</button><button style="background:#f39c12" onclick="cAdd('+')">+</button></div>`, "300px", "450px");}
+let cBuf = "";
+window.cAdd = v => { cBuf += v; document.getElementById("c-res").innerText = cBuf; };
+window.cClr = () => { cBuf = ""; document.getElementById("c-res").innerText = "0"; };
+window.cEval = () => { try { cBuf = eval(cBuf).toString(); document.getElementById("c-res").innerText = cBuf; } catch { cClr(); } };
+
+function openNiescut() {
+    createWindow("Niescut Editor", `<div class="niescut-layout"><div style="width:150px; background:rgba(0,0,0,0.2); padding:10px; border-radius:10px;"><strong>Media</strong><br><br><input type="file" id="v-file" style="display:none"><button onclick="document.getElementById('v-file').click()">Importuj</button></div><div id="v-prev" style="flex:1; background:black; border-radius:10px; display:grid; place-items:center"><span style="opacity:0.3">Preview</span></div></div><div class="timeline" id="v-line"></div>`);
+    const vf = document.getElementById('v-file');
+    if(vf) vf.onchange = e => { const f = e.target.files[0]; if(f) { const i = document.createElement("div"); i.className = "clip"; i.innerText = f.name; document.getElementById("v-line").appendChild(i); } };
+}
+
+/* --- USTAWIENIA --- */
+function openSettings() {
+    const html = `
+        <div class="settings-nav">
+            <span class="active" onclick="setSetTab('sys', this)">${t('system')}</span>
+            <span onclick="setSetTab('app', this)">${t('appearance')}</span>
+        </div>
+        <div id="s-page-sys" class="settings-page active">
+            <div>
+                <label>${t('langName')}</label><br>
+                <select id="s-lang" style="width:100%; padding:5px; margin-top:5px; background:#222; color:white; border:1px solid var(--accent)">
+                    <option value="pl" ${currentLang==='pl'?'selected':''}>Polski</option>
+                    <option value="en" ${currentLang==='en'?'selected':''}>English</option>
+                </select>
+            </div>
+            <div>
+                <label>${t('info')}</label>
+                <p style="font-size:12px; opacity:0.7">KOCUROS ${t('version')}<br>User: ${localStorage.kocuros_username}</p>
+            </div>
+            <button onclick="resetOS()" style="background:#ff5f56">${t('reset')}</button>
+        </div>
+        <div id="s-page-app" class="settings-page">
+            <div>
+                <label>${t('accent')}</label><br>
+                <input type="color" id="s-acc" value="${localStorage.kocuros_accent || '#7c7cff'}">
+            </div>
+             <div>
+                <label>${t('wallpaper')}</label><br>
+                <input type="text" id="s-wall" placeholder="URL..." value="${localStorage.kocuros_wallpaper || ''}" style="width:100%; background:#222; color:white; border:1px solid #444; padding:5px; border-radius:4px;">
+            </div>
+            <div>
+                <label>${t('taskSize')} (${localStorage.kocuros_taskbar || 64}px)</label>
+                <input type="range" id="s-task" min="40" max="100" value="${localStorage.kocuros_taskbar || 64}">
+            </div>
+            <div>
+                <label>${t('opacity')}</label>
+                <input type="range" id="s-op" min="40" max="100" value="${localStorage.kocuros_windowOpacity || 90}">
+            </div>
+        </div>
+    `;
+    createWindow("Ustawienia", html, "400px", "450px");
+    
+    // Obsługa zdarzeń
+    document.getElementById("s-lang").onchange = e => {
+        localStorage.kocuros_lang = e.target.value;
+        showModal("Zrestartować, aby zmienić język?", "confirm", (y) => { if(y) location.reload(); });
+    };
+
+    document.getElementById("s-acc").oninput = e => {
+        document.documentElement.style.setProperty('--accent', e.target.value);
+        localStorage.kocuros_accent = e.target.value;
+    };
+
+    document.getElementById("s-wall").onchange = e => {
+        localStorage.kocuros_wallpaper = e.target.value;
+        document.body.style.backgroundImage = `url('${e.target.value}')`;
+    };
+
+    document.getElementById("s-task").oninput = e => {
+        document.documentElement.style.setProperty('--taskbar-size', e.target.value + 'px');
+        localStorage.kocuros_taskbar = e.target.value;
+    };
+
+    document.getElementById("s-op").oninput = e => {
+        localStorage.kocuros_windowOpacity = e.target.value;
+        document.querySelectorAll(".window").forEach(w => w.style.background = `rgba(15, 20, 35, ${e.target.value/100})`);
+    };
+}
+
+window.setSetTab = (tab, btn) => {
+    document.querySelectorAll('.settings-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.settings-nav span').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-page-' + tab).classList.add('active');
+    btn.classList.add('active');
+};
+
+function resetOS() {
+    showModal(t('confirmReset'), "confirm", (yes) => {
+        if(yes) { localStorage.clear(); location.reload(); }
+    });
+}
+
+function applyStoredSettings() {
+    if(localStorage.kocuros_accent) document.documentElement.style.setProperty('--accent', localStorage.kocuros_accent);
+    if(localStorage.kocuros_taskbar) document.documentElement.style.setProperty('--taskbar-size', localStorage.kocuros_taskbar + 'px');
+    if(localStorage.kocuros_wallpaper) document.body.style.backgroundImage = `url('${localStorage.kocuros_wallpaper}')`;
+}
+
+const logoutBtn = document.getElementById("logoutBtn");
+if(logoutBtn) logoutBtn.onclick = () => {
+    showModal("Zakończyć sesję?", "confirm", (yes) => {
+        if(yes) { localStorage.removeItem("kocuros_user"); location.reload(); }
+    });
+};
+</script>
+</body>
+</html>
