@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>KOCUROS OS</title>
+<style>
+:root{
+  --bg:#05070f;
+  --panel:rgba(20,25,40,.85);
+  --accent:#7c7cff;
+  --text:#e5e7eb;
+  --blur:blur(16px);
+  --win-bg: rgba(15, 20, 35, 0.9);
+}
+*{box-sizing:border-box}
+body{
+    margin:0;height:100vh;
+    background:radial-gradient(circle at 30% 30%,#1b1f3a,#05070f);
+    font-family: system-ui, sans-serif;
+    color:var(--text);overflow:hidden;
+}
+
+/* --- ANIMACJE --- */
+@keyframes windowOpen {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Nowe animacje wyjścia */
+@keyframes windowClose {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.95); }
+}
+
+@keyframes windowMin {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to { opacity: 0; transform: scale(0.5) translateY(100px); }
+}
+
+/* Klasy pomocnicze dla animacji */
+.anim-close { animation: windowClose 0.2s forwards !important; pointer-events: none; }
+.anim-min { animation: windowMin 0.25s forwards !important; pointer-events: none; }
+
+/* --- STYLIZOWANE BUTTONY --- */
+button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.3s;
+    box-shadow: 0 4px 15px rgba(124, 124, 255, 0.3);
+}
+button:hover {
+    filter: brightness(1.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(124, 124, 255, 0.5);
+}
+button:active { transform: translateY(0); }
+
+/* --- NOWOCZESNY SLIDER --- */
+input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; }
+input[type=range]::-webkit-slider-thumb { 
+    -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; 
+    background: var(--accent); cursor: pointer; margin-top: -6px; 
+    box-shadow: 0 0 10px var(--accent);
+}
+
+/* BOOT & LOGIN */
+#boot, #loginScreen{position:fixed;inset:0;display:grid;place-items:center;z-index:1000;}
+#boot{background:black; font-family: monospace;}
+#loginScreen{background:radial-gradient(#0b0f1a,#000);display:none;}
+.login-box{
+    background:var(--panel);backdrop-filter:var(--blur);padding:40px;
+    border-radius:24px;text-align:center;border: 1px solid rgba(255,255,255,0.1);
+}
+.login-box input{
+    width:220px;padding:12px;margin-top:10px; border-radius:8px;
+    border:1px solid var(--accent); background: rgba(0,0,0,0.3); color: white;
+}
+
+/* DESKTOP & TASKBAR */
+#desktop{width:100%;height:100%;display:none;}
+#taskbar{
+    position:absolute;bottom:15px;left:50%;transform:translateX(-50%);
+    display:flex;gap:12px;padding:10px 20px;background:var(--panel);
+    backdrop-filter:var(--blur);border-radius:20px;
+    border: 1px solid rgba(255,255,255,0.1); align-items: center;
+    z-index: 10000;
+}
+.task{
+    width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.05);
+    display:grid;place-items:center;cursor:pointer;transition:.3s;font-size:20px;
+    position: relative;
+}
+.task:hover{ background:var(--accent); transform: scale(1.1) translateY(-5px); }
+
+/* Wskaźnik otwartej aplikacji na pasku */
+.task.active::after {
+    content: ''; position: absolute; bottom: 4px; width: 6px; height: 6px; 
+    background: var(--accent); border-radius: 50%;
+}
+
+#tray { margin-left: 15px; padding-left: 15px; border-left: 1px solid rgba(255,255,255,0.2); font-size: 13px; text-align:center;}
+
+/* WINDOW */
+.window{
+    position:absolute;top:10%;left:10%;width:650px;height:450px;
+    background:var(--win-bg);backdrop-filter:var(--blur);border-radius:16px;
+    box-shadow:0 25px 50px rgba(0,0,0,0.5);overflow:hidden;display:flex;
+    flex-direction:column; animation: windowOpen 0.4s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+    border: 1px solid rgba(255,255,255,0.1);
+    /* Transition tylko dla transformacji i opasity, bez top/left! */
+    transition: transform 0.2s, opacity 0.2s, width 0.3s, height 0.3s;
+}
+.window.maximized {
+    top: 0 !important; left: 0 !important; width: 100vw !important; height: calc(100vh - 80px) !important;
+    border-radius: 0;
+}
+.window.minimized { display: none; }
+
+.titlebar{height:45px;display:flex;align-items:center;justify-content:space-between;padding:0 15px;background:rgba(0,0,0,0.2);cursor:move;user-select:none;}
+
+/* NOWE IKONKI OKNA */
+.controls { display: flex; gap: 8px; }
+.controls span {
+    width: 26px; height: 26px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: 0.2s; font-family: monospace; font-size: 14px; font-weight: bold;
+    background: rgba(255,255,255,0.05);
+}
+.controls span:hover { background: rgba(255,255,255,0.15); }
+.red:hover { background: #ff5f56 !important; color: white; }
+.yellow:hover { background: #ffbd2e !important; color: black; }
+.green:hover { background: #27c93f !important; color: white; }
+
+.content{flex:1;overflow:hidden;padding:15px;display:flex;flex-direction:column;}
+
+/* APPS SPECIFIC */
+.terminal { background: #000; color: #0f0; font-family: monospace; padding: 10px; border-radius: 8px; flex:1; display:flex; flex-direction:column;}
+.terminal input { background: transparent; border:none; color: #0f0; outline:none; width: 100%; font-family: monospace;}
+
+.calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; flex:1; }
+.calc-screen { 
+    background: rgba(0,0,0,0.3); padding: 20px; text-align: right; 
+    font-size: 24px; border-radius: 10px; margin-bottom: 15px; 
+}
+
+.niescut-layout { display: flex; gap: 10px; flex: 1; height: 70%; }
+.timeline { height: 80px; background: #111; margin-top: 10px; border-radius: 10px; display: flex; align-items: center; padding: 5px; gap: 5px; overflow-x: auto;}
+.clip { height: 60px; min-width: 100px; background: var(--accent); border-radius: 8px; display: grid; place-items: center; font-size: 12px;}
+
+#logoutPopup{
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    background: var(--panel); backdrop-filter: var(--blur); padding: 30px;
+    border-radius: 20px; display: none; flex-direction: column; align-items: center; gap: 15px; z-index: 9999;
+}
+</style>
+</head>
+<body>
+
+<div id="boot">Booting KOCUROS OS…</div>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>KOCUROS</h1>
+    <input id="usernameInput" placeholder="Nazwa użytkownika">
+    <br><br>
+    <button onclick="doLogin()">Zaloguj</button>
+  </div>
+</div>
+
+<div id="desktop">
+  <div id="taskbar">
+    <div class="task" id="task-Terminal" onclick="handleTaskClick('Terminal', openTerminal)" title="Terminal">🖥</div>
+    <div class="task" id="task-Pliki" onclick="handleTaskClick('Pliki', openFiles)" title="Pliki">📁</div>
+    <div class="task" id="task-Paint" onclick="handleTaskClick('Paint', openPaint)" title="Paint">🎨</div>
+    <div class="task" id="task-Notatnik" onclick="handleTaskClick('Notatnik', openNotes)" title="Notatnik">📝</div>
+    <div class="task" id="task-Kalkulator" onclick="handleTaskClick('Kalkulator', openCalc)" title="Kalkulator">🔢</div>
+    <div class="task" id="task-Niescut" onclick="handleTaskClick('Niescut', openNiescut)" title="Niescut">🎬</div>
+    <div class="task" id="task-Ustawienia" onclick="handleTaskClick('Ustawienia', openSettings)" title="Ustawienia">⚙️</div>
+    <div class="task" id="logoutBtn" title="Wyloguj">🚪</div>
+    
+    <div id="tray">
+      <div id="tray-time" style="font-weight:bold">00:00</div>
+      <div id="tray-date" style="font-size: 10px; opacity:0.7">01.01.2024</div>
+    </div>
+  </div>
+</div>
+
+<div id="logoutPopup">
+  <div style="font-size: 18px;">Zakończyć sesję?</div>
+  <div style="display:flex; gap:10px;">
+    <button onclick="confirmLogout(true)">Tak, wyloguj</button>
+    <button onclick="confirmLogout(false)" style="background:#444">Anuluj</button>
+  </div>
+</div>
+
+<script>
+/* --- CORE --- */
+const boot=document.getElementById("boot"),
+      loginScreen=document.getElementById("loginScreen"),
+      desktop=document.getElementById("desktop");
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById("tray-time").textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    document.getElementById("tray-date").textContent = now.toLocaleDateString();
+}
+setInterval(updateClock, 1000);
+
+setTimeout(() => {
+    boot.remove();
+    if(!localStorage.kocuros_user) loginScreen.style.display="grid";
+    else startOS();
+}, 1500);
+
+function doLogin() {
+    const name = document.getElementById("usernameInput").value.trim();
+    if(!name) return;
+    localStorage.kocuros_user = name;
+    startOS();
+}
+
+function startOS() {
+    loginScreen.remove();
+    desktop.style.display="block";
+    applyStoredSettings();
+    updateClock();
+}
+
+/* --- WINDOW SYSTEM --- */
+let zIndex = 100;
+let openWindows = {}; 
+
+function createWindow(title, html, wWidth="650px", wHeight="450px") {
+    if(openWindows[title]) {
+        const existing = openWindows[title];
+        existing.classList.remove("minimized", "anim-min");
+        existing.style.display = "flex";
+        existing.style.zIndex = ++zIndex;
+        return;
+    }
+
+    const w = document.createElement("div");
+    w.className = "window";
+    w.id = "win-" + title;
+    w.style.zIndex = ++zIndex;
+    w.style.width = wWidth;
+    w.style.height = wHeight;
+    w.innerHTML = `
+        <div class="titlebar">
+            <div class="controls">
+                <span class="red" onclick="closeWin('${title}')">✕</span>
+                <span class="yellow" onclick="minimizeWin('${title}')">─</span>
+                <span class="green" onclick="maximizeWin('${title}')">▢</span>
+            </div>
+            <strong style="font-size:14px; opacity:0.8">${title}</strong>
+            <div style="width:40px"></div>
+        </div>
+        <div class="content">${html}</div>`;
+    
+    document.body.appendChild(w);
+    dragWindow(w);
+    
+    openWindows[title] = w;
+    document.getElementById("task-" + title.split(' ')[0])?.classList.add("active");
+    
+    const op = localStorage.kocuros_windowOpacity || 90;
+    w.style.background = `rgba(15, 20, 35, ${op/100})`;
+}
+
+function closeWin(title) {
+    const win = openWindows[title];
+    win.classList.add("anim-close");
+    setTimeout(() => {
+        win.remove();
+        delete openWindows[title];
+        document.getElementById("task-" + title.split(' ')[0])?.classList.remove("active");
+    }, 200);
+}
+
+function minimizeWin(title) {
+    const win = openWindows[title];
+    win.classList.add("anim-min");
+    setTimeout(() => {
+        win.classList.add("minimized");
+    }, 250);
+}
+
+function maximizeWin(title) {
+    openWindows[title].classList.toggle("maximized");
+}
+
+function handleTaskClick(titleShort, openFunc) {
+    let fullTitle = Object.keys(openWindows).find(k => k.startsWith(titleShort));
+    
+    if(fullTitle && openWindows[fullTitle]) {
+        let w = openWindows[fullTitle];
+        if(w.classList.contains("minimized")) {
+            w.classList.remove("minimized", "anim-min");
+            w.style.display = "flex";
+            w.style.zIndex = ++zIndex;
+        } else {
+            minimizeWin(fullTitle);
+        }
+    } else {
+        openFunc();
+    }
+}
+
+function dragWindow(w) {
+    const bar = w.querySelector(".titlebar");
+    let x, y;
+    bar.onmousedown = e => {
+        if(w.classList.contains("maximized")) return;
+        w.style.zIndex = ++zIndex;
+        x = e.clientX; y = e.clientY;
+        document.onmousemove = ev => {
+            w.style.left = (w.offsetLeft + ev.clientX - x) + "px";
+            w.style.top = (w.offsetTop + ev.clientY - y) + "px";
+            x = ev.clientX; y = ev.clientY;
+        }
+        document.onmouseup = () => document.onmousemove = null;
+    }
+}
+
+/* --- APPS --- */
+
+function openTerminal() {
+    createWindow("Terminal", `
+        <div class="terminal">
+            <div>KOCUROS Kernel v2.5.0-stable</div>
+            <div>Witaj, ${localStorage.kocuros_user}</div><br>
+            <div id="t-out"></div>
+            <div style="display:flex">> <input id="t-in" autofocus></div>
+        </div>
+    `);
+    const input = document.getElementById("t-in");
+    if(input) {
+        input.onkeydown = e => {
+            if(e.key === "Enter") {
+                const out = document.getElementById("t-out");
+                const cmd = input.value.toLowerCase();
+                out.innerHTML += `<div>> ${cmd}</div>`;
+                if(cmd === "help") out.innerHTML += "<div>Dostępne: help, clear, exit, date</div>";
+                else if(cmd === "clear") out.innerHTML = "";
+                else if(cmd === "date") out.innerHTML += `<div>${new Date()}</div>`;
+                input.value = "";
+            }
+        }
+    }
+}
+
+function openPaint() {
+    createWindow("Paint Pro", `
+        <canvas id="p-can" width="600" height="320" style="background:white; border-radius:10px; cursor:crosshair"></canvas>
+        <div style="margin-top:10px; display:flex; gap:10px;">
+            <button onclick="ctxClear()">Wyczyść</button>
+            <input type="color" id="p-col" value="${localStorage.kocuros_accent || '#7c7cff'}">
+        </div>
+    `);
+    const can = document.getElementById("p-can");
+    if(can) {
+        const ctx = can.getContext("2d");
+        let drawing = false;
+        can.onmousedown = () => drawing = true;
+        can.onmouseup = () => drawing = false;
+        can.onmousemove = e => {
+            if(!drawing) return;
+            ctx.fillStyle = document.getElementById("p-col").value;
+            ctx.beginPath(); ctx.arc(e.offsetX, e.offsetY, 4, 0, Math.PI*2); ctx.fill();
+        }
+        window.ctxClear = () => ctx.clearRect(0,0,can.width,can.height);
+    }
+}
+
+function openNotes() {
+    const saved = localStorage.kocuros_note || "Wpisz coś...";
+    createWindow("Notatnik", `
+        <textarea id="n-area" style="width:100%; height:100%; background:transparent; color:white; border:none; outline:none; resize:none; font-family:inherit; font-size:16px;">${saved}</textarea>
+    `, "400px", "500px");
+    const area = document.getElementById("n-area");
+    if(area) area.oninput = e => localStorage.kocuros_note = e.target.value;
+}
+
+function openCalc() {
+    createWindow("Kalkulator", `
+        <div class="calc-screen" id="c-res">0</div>
+        <div class="calc-grid">
+            <button onclick="cAdd('7')">7</button><button onclick="cAdd('8')">8</button><button onclick="cAdd('9')">9</button><button style="background:#f39c12" onclick="cAdd('/')">/</button>
+            <button onclick="cAdd('4')">4</button><button onclick="cAdd('5')">5</button><button onclick="cAdd('6')">6</button><button style="background:#f39c12" onclick="cAdd('*')">*</button>
+            <button onclick="cAdd('1')">1</button><button onclick="cAdd('2')">2</button><button onclick="cAdd('3')">3</button><button style="background:#f39c12" onclick="cAdd('-')">-</button>
+            <button onclick="cAdd('0')">0</button><button onclick="cClr()">C</button><button onclick="cEval()">=</button><button style="background:#f39c12" onclick="cAdd('+')">+</button>
+        </div>
+    `, "300px", "450px");
+}
+let cBuf = "";
+window.cAdd = v => { cBuf += v; const res = document.getElementById("c-res"); if(res) res.innerText = cBuf; };
+window.cClr = () => { cBuf = ""; const res = document.getElementById("c-res"); if(res) res.innerText = "0"; };
+window.cEval = () => { try { cBuf = eval(cBuf).toString(); const res = document.getElementById("c-res"); if(res) res.innerText = cBuf; } catch { cClr(); } };
+
+function openNiescut() {
+    createWindow("Niescut Editor", `
+        <div class="niescut-layout">
+            <div style="width:150px; background:rgba(0,0,0,0.2); padding:10px; border-radius:10px;">
+                <strong>Media</strong><br><br>
+                <input type="file" id="v-file" style="display:none">
+                <button onclick="document.getElementById('v-file').click()">Importuj</button>
+            </div>
+            <div id="v-prev" style="flex:1; background:black; border-radius:10px; display:grid; place-items:center">
+                <span style="opacity:0.3">Preview</span>
+            </div>
+        </div>
+        <div class="timeline" id="v-line"></div>
+    `);
+    const vfile = document.getElementById('v-file');
+    if(vfile) {
+        vfile.onchange = e => {
+            const file = e.target.files[0];
+            if(file) {
+                const item = document.createElement("div");
+                item.className = "clip"; item.innerText = file.name;
+                document.getElementById("v-line").appendChild(item);
+            }
+        };
+    }
+}
+
+function openSettings() {
+    createWindow("Ustawienia", `
+        <div style="display:flex; flex-direction:column; gap:15px;">
+            <div>
+                <label>Kolor akcentu</label><br>
+                <input type="color" id="s-acc" value="${localStorage.kocuros_accent || '#7c7cff'}">
+            </div>
+            <div>
+                <label>Przezroczystość okien</label>
+                <input type="range" id="s-op" min="40" max="100" value="${localStorage.kocuros_windowOpacity || 90}">
+            </div>
+            <button onclick="localStorage.clear(); location.reload();">Resetuj system</button>
+        </div>
+    `, "350px", "400px");
+    
+    const sacc = document.getElementById("s-acc");
+    if(sacc) sacc.oninput = e => {
+        document.documentElement.style.setProperty('--accent', e.target.value);
+        localStorage.kocuros_accent = e.target.value;
+    };
+    const sop = document.getElementById("s-op");
+    if(sop) sop.oninput = e => {
+        const val = e.target.value;
+        localStorage.kocuros_windowOpacity = val;
+        document.querySelectorAll(".window").forEach(w => w.style.background = `rgba(15, 20, 35, ${val/100})`);
+    };
+}
+
+function openFiles() {
+    createWindow("Eksplorator plików", `
+        <div style="padding:10px;">
+            <div style="margin-bottom:10px; border-bottom:1px solid #333">Folder: /root</div>
+            <div>📄 system.log</div>
+            <div>📄 user_config.json</div>
+            <div>📝 notes.txt</div>
+        </div>
+    `, "400px", "300px");
+}
+
+/* --- STORAGE LOGIC --- */
+function applyStoredSettings() {
+    if(localStorage.kocuros_accent) document.documentElement.style.setProperty('--accent', localStorage.kocuros_accent);
+}
+
+/* --- LOGOUT --- */
+const logoutBtn = document.getElementById("logoutBtn");
+if(logoutBtn) logoutBtn.onclick = () => document.getElementById("logoutPopup").style.display = "flex";
+function confirmLogout(yes) {
+    if(yes) { localStorage.removeItem("kocuros_user"); location.reload(); }
+    document.getElementById("logoutPopup").style.display = "none";
+}
+</script>
+</body>
+</html>
