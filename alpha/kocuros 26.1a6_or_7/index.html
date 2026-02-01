@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>KOCUROS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="boot">Booting KOCUROS…</div>
+<div id="splashScreen">
+    <div class="logo-container">KOCUROS</div>
+    <div class="loader-bar"><div class="loader-progress"></div></div>
+    <div id="splash-status">Initializing kernel...</div>
+</div>
+<div id="context-menu"></div>
+
+<div id="os-modal" class="os-modal">
+    <div id="modal-text" style="font-size: 18px;"></div>
+    <div id="modal-input-container"></div>
+    <div id="modal-buttons" style="display:flex; gap:10px;"></div>
+</div>
+
+<div id="setupScreen">
+    <div class="login-box">
+        <div id="setup-step-1">
+            <h1>Select Language</h1>
+            <select id="setupLang">
+              <option value="pl">Polski</option>
+              <option value="en" selected>English</option>
+              <option value="es">Español</option>
+            </select>
+            <br><br>
+            <button onclick="nextSetupStep()">Next</button>
+        </div>
+
+        <div id="setup-step-2" style="display:none">
+            <h1 id="txt-setup-title">Configuration</h1>
+            <input id="setupUser" placeholder="Username">
+            <input id="setupPass" type="password" placeholder="Password">
+            <br><br>
+            <button onclick="finishSetup()" id="btn-install">Install System</button>
+        </div>
+    </div>
+</div>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>KOCUROS</h1>
+    <h3 id="loginWelcome">Hello</h3>
+    <input id="usernameInput" type="password" placeholder="Password">
+    <br><br>
+    <button onclick="doLogin()">Login</button>
+  </div>
+</div>
+
+<div id="desktop">
+  <div id="desktop-icons"></div>
+  <div id="taskbar">
+    <div class="task" id="task-Terminal" onclick="handleTaskClick('Terminal', openTerminal)" title="Terminal">>_</div>
+    <div class="task" id="task-Pliki" onclick="handleTaskClick('Pliki', openFiles)" title="Files">📁</div>
+    <div class="task" id="task-Paint" onclick="handleTaskClick('Paint', openPaint)" title="Paint">🎨</div>
+    <div class="task" id="task-Notatnik" onclick="handleTaskClick('Notatnik', () => openNotes())" title="Notes">📝</div>
+    <div class="task" id="task-Kalkulator" onclick="handleTaskClick('Kalkulator', openCalc)" title="Calculator">🔢</div>
+    <div class="task" id="task-Niescut" onclick="handleTaskClick('Niescut', openNiescut)" title="Niescut">🎬</div>
+    <div class="task" id="task-Dyktafon" onclick="handleTaskClick('Dyktafon', openVoiceRec)" title="Voice Recorder">🎤</div>
+    <div class="task" id="task-Ustawienia" onclick="handleTaskClick('Ustawienia', openSettings)" title="Settings">⚙️</div>
+    <div class="task" id="logoutBtn" title="Logout">🚪</div>
+    <div id="tray-volume" style="display:flex; align-items:center; gap:8px; padding:0 10px; border-left:1px solid rgba(255,255,255,0.1);">
+      <span id="vol-icon" onclick="toggleMute()" style="cursor:pointer">🔊</span>
+      <input type="range" id="global-vol" style="width:60px;" min="0" max="100" value="100">
+    </div>
+    <div id="tray" onclick="openCalendar()">
+      <div id="tray-time" style="font-weight:bold">00:00</div>
+      <div id="tray-date" style="font-size: 10px; opacity:0.7">01.01.2024</div>
+    </div>
+  </div>
+</div>
+
+<script src="js/lang/pl.js"></script>
+<script src="js/lang/en.js"></script>
+<script src="js/lang/es.js"></script>
+<script src="js/core.js" defer></script>
+<script src="js/apps.js" defer></script>
+<div id="build-badge"></div>
+</body>
+</html>
